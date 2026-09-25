@@ -1562,7 +1562,7 @@
 
 <!-- WELCOME BANNER -->
 <section class="welcome-banner">
-  <video class="welcome-banner-video" autoplay loop muted playsinline>
+  <video class="welcome-banner-video" autoplay loop muted playsinline preload="auto">
     <source src="uploads/iStock-1163503645.mp4" type="video/mp4">
   </video>
   <div class="welcome-banner-inner">
@@ -1599,7 +1599,7 @@ and are choosing your growth and healing.</div>
 
 <!-- SKY BANNER -->
 <section class="sky-banner">
-  <video class="sky-banner-video" autoplay loop muted playsinline>
+  <video class="sky-banner-video" autoplay loop muted playsinline preload="auto">
     <source src="uploads/iStock-1093790876.mp4" type="video/mp4">
   </video>
   <div class="sky-banner-overlay" style="font-size: 59px">
@@ -1783,13 +1783,14 @@ or book an initial session together.</p>
     };
     // On every return to the page, wake every video wherever it is on the page:
     // play anything paused, then reload any whose clock hasn't moved.
+    let lastReturn = 0;
     const returned = () => {
-      resume();
-      const t0 = new Map(videos.map(v => [v, v.currentTime]));
-      setTimeout(() => {
-        if (document.visibilityState === 'hidden') return;
-        videos.forEach(v => { if (v.paused || v.ended || Math.abs(v.currentTime - t0.get(v)) < 0.05) reload(v); });
-      }, 900);
+      if (document.visibilityState === 'hidden') return;
+      const now = Date.now(); if (now - lastReturn < 1500) return; lastReturn = now;
+      // Reload every video straight away, on screen or not, so each is buffered
+      // and running by the time it scrolls into view.
+      videos.forEach(reload);
+      setTimeout(resume, 600);
       setTimeout(check, 2500);
     };
     ['pageshow', 'focus', 'touchstart', 'scroll', 'resize'].forEach(ev => window.addEventListener(ev, resume, { passive: true }));
