@@ -1787,11 +1787,16 @@ or book an initial session together.</p>
     const returned = () => {
       if (document.visibilityState === 'hidden') return;
       const now = Date.now(); if (now - lastReturn < 1500) return; lastReturn = now;
-      // Reload every video straight away, on screen or not, so each is buffered
-      // and running by the time it scrolls into view.
-      videos.forEach(reload);
-      setTimeout(resume, 600);
-      setTimeout(check, 2500);
+      // Press play on every video, on screen or not; a second later, reload only
+      // those whose picture hasn't started moving (a reload throws away the buffer,
+      // so it is a last resort, not the first move).
+      resume();
+      const t0 = new Map(videos.map(v => [v, v.currentTime]));
+      setTimeout(() => {
+        if (document.visibilityState === 'hidden') return;
+        videos.forEach(v => { if (v.paused || v.ended || Math.abs(v.currentTime - t0.get(v)) < 0.05) reload(v); });
+      }, 1000);
+      setTimeout(check, 3000);
     };
     ['pageshow', 'focus', 'touchstart', 'scroll', 'resize'].forEach(ev => window.addEventListener(ev, resume, { passive: true }));
     window.addEventListener('pageshow', returned);
