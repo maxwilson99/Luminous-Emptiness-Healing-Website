@@ -1509,7 +1509,7 @@
     .services { padding-top: 3rem !important; padding-bottom: 40px !important; padding-left: 1rem !important; padding-right: 1rem !important; }
     .services-primary { margin-bottom: 0; }
     .services-header { margin-bottom: 1.5rem; }
-    .services-header .section-label { font-size: 31.5px !important; }
+    .services-header .section-label { font-size: 27.5px !important; }
     .services-header p { font-size: 20px !important; white-space: normal !important; text-wrap: balance; max-width: 19ch; margin-left: auto; margin-right: auto; }
     .services-ornament { margin: 1.25rem 0; }
     .service-body { padding: 1.4rem 1.2rem 2rem; }
@@ -1767,34 +1767,44 @@ or book an initial session together.</p>
   });
 
   // Keep the banner videos playing. Mobile browsers pause autoplay video when the
-  // tab is backgrounded, the page is restored from the back/forward cache, or the
-  // video scrolls off screen, and don't always resume it. Nudge them back to life.
+  // tab is backgrounded, the app is switched away from, or the page is restored
+  // from the back/forward cache, and sometimes leave the decoder frozen even though
+  // the element still reports "playing". Resume on every return, and reload a video
+  // whose picture has stopped advancing.
   (() => {
     const videos = Array.from(document.querySelectorAll('video[autoplay]'));
     if (!videos.length) return;
+    const last = new Map();
+    const play = v => { v.muted = true; const p = v.play(); if (p && p.catch) p.catch(() => {}); };
+    const reload = v => { const t = v.currentTime || 0; try { v.load(); } catch (e) {} v.addEventListener('loadeddata', () => { try { v.currentTime = t; } catch (e) {} play(v); }, { once: true }); play(v); };
     const resume = () => {
-      if (document.hidden) return;
-      videos.forEach(v => {
-        v.muted = true;
-        if (v.paused || v.ended) {
-          const p = v.play();
-          if (p && p.catch) p.catch(() => {});
-        }
-      });
+      if (document.visibilityState === 'hidden') return;
+      videos.forEach(v => { if (v.paused || v.ended || v.readyState < 2) play(v); });
     };
-    ['pageshow', 'focus', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, resume, { passive: true }));
-    document.addEventListener('visibilitychange', resume);
+    const returned = () => { resume(); setTimeout(resume, 300); setTimeout(check, 1200); };
+    ['pageshow', 'focus', 'touchstart', 'scroll', 'resize'].forEach(ev => window.addEventListener(ev, resume, { passive: true }));
+    window.addEventListener('pageshow', returned);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') returned(); });
+    document.addEventListener('resume', returned);
     if ('IntersectionObserver' in window) {
-      const vo = new IntersectionObserver(entries => {
-        entries.forEach(e => { if (e.isIntersecting) resume(); });
-      }, { threshold: 0.05 });
+      const vo = new IntersectionObserver(entries => { entries.forEach(e => { if (e.isIntersecting) resume(); }); }, { threshold: 0.05 });
       videos.forEach(v => vo.observe(v));
     }
-    videos.forEach(v => {
-      v.addEventListener('stalled', resume);
-      v.addEventListener('suspend', () => setTimeout(resume, 500));
-    });
-    setInterval(resume, 3000);
+    videos.forEach(v => { v.addEventListener('stalled', () => { const t = v.currentTime; setTimeout(() => { if (!v.paused && Math.abs(v.currentTime - t) < 0.05) reload(v); }, 2500); }); v.addEventListener('error', () => setTimeout(() => reload(v), 1000)); });
+    // Frozen-picture detector: playing but the clock isn't moving.
+    function check() {
+      if (document.visibilityState === 'hidden') return;
+      videos.forEach(v => {
+        const r = v.getBoundingClientRect();
+        const onScreen = r.bottom > 0 && r.top < innerHeight;
+        if (!onScreen) { last.delete(v); return; }
+        if (v.paused || v.ended) { play(v); last.delete(v); return; }
+        const prev = last.get(v);
+        if (prev !== undefined && Math.abs(v.currentTime - prev) < 0.05) { reload(v); last.delete(v); return; }
+        last.set(v, v.currentTime);
+      });
+    }
+    setInterval(check, 2000);
     resume();
   })();
 </script>
