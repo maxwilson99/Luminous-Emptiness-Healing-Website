@@ -1430,7 +1430,7 @@
 
   @media (max-width: 640px) {
     /* Header: stack the three words, tighter spacing, nudged left; per-word aligned light beam */
-    nav { padding-left: 0.5rem; }
+    nav { padding-left: 0.5rem; padding-top: 0.625rem; padding-bottom: 0.625rem; }
     .nav-brand { letter-spacing: 0.12em; }
     .nav-brand span { position: relative; display: block; line-height: 1.04; isolation: isolate; }
     .nav-brand::before { display: none; }
@@ -1509,6 +1509,7 @@
     .services { padding-top: 3rem !important; padding-bottom: 40px !important; padding-left: 1rem !important; padding-right: 1rem !important; }
     .services-primary { margin-bottom: 0; }
     .services-header { margin-bottom: 1.5rem; }
+    .services-header .section-label { font-size: 31.5px !important; }
     .services-header p { font-size: 20px !important; white-space: normal !important; text-wrap: balance; max-width: 19ch; margin-left: auto; margin-right: auto; }
     .services-ornament { margin: 1.25rem 0; }
     .service-body { padding: 1.4rem 1.2rem 2rem; }
@@ -1764,6 +1765,38 @@ or book an initial session together.</p>
   document.querySelectorAll('.reveal-rise, .reveal-fade').forEach(el => {
     revealObserver.observe(el);
   });
+
+  // Keep the banner videos playing. Mobile browsers pause autoplay video when the
+  // tab is backgrounded, the page is restored from the back/forward cache, or the
+  // video scrolls off screen, and don't always resume it. Nudge them back to life.
+  (() => {
+    const videos = Array.from(document.querySelectorAll('video[autoplay]'));
+    if (!videos.length) return;
+    const resume = () => {
+      if (document.hidden) return;
+      videos.forEach(v => {
+        v.muted = true;
+        if (v.paused || v.ended) {
+          const p = v.play();
+          if (p && p.catch) p.catch(() => {});
+        }
+      });
+    };
+    ['pageshow', 'focus', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, resume, { passive: true }));
+    document.addEventListener('visibilitychange', resume);
+    if ('IntersectionObserver' in window) {
+      const vo = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) resume(); });
+      }, { threshold: 0.05 });
+      videos.forEach(v => vo.observe(v));
+    }
+    videos.forEach(v => {
+      v.addEventListener('stalled', resume);
+      v.addEventListener('suspend', () => setTimeout(resume, 500));
+    });
+    setInterval(resume, 3000);
+    resume();
+  })();
 </script>
 <template id="__bundler_thumbnail">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
