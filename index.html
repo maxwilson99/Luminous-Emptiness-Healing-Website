@@ -1432,6 +1432,13 @@
     .about-text p { font-size: 20px !important; }
   }
 
+  @media (min-width: 901px) {
+    /* About: tighten spacing so the text column sits level with the photo */
+    .about-text h2:empty { display: none; }
+    .about-text p { margin-bottom: 0.9rem; line-height: 1.65; }
+    .about-inner { gap: 4rem; }
+  }
+
   @media (max-width: 640px) {
     /* Header: stack the three words, tighter spacing, nudged left; per-word aligned light beam */
     nav { padding-left: 0.5rem; padding-top: 0.625rem; padding-bottom: 0.625rem; }
