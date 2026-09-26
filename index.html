@@ -1564,7 +1564,7 @@
 
 <!-- WELCOME BANNER -->
 <section class="welcome-banner">
-  <video class="welcome-banner-video" autoplay loop muted playsinline preload="auto">
+  <video class="welcome-banner-video" data-autoplay loop muted playsinline preload="none">
     <source src="uploads/iStock-1163503645.mp4" type="video/mp4">
   </video>
   <div class="welcome-banner-inner">
@@ -1601,7 +1601,7 @@ and are choosing your growth and healing.</div>
 
 <!-- SKY BANNER -->
 <section class="sky-banner">
-  <video class="sky-banner-video" autoplay loop muted playsinline preload="auto">
+  <video class="sky-banner-video" data-autoplay loop muted playsinline preload="none">
     <source src="uploads/iStock-1093790876.mp4" type="video/mp4">
   </video>
   <div class="sky-banner-overlay" style="font-size: 59px">
@@ -1774,20 +1774,21 @@ or book an initial session together.</p>
   // the element still reports "playing". Resume on every return, and reload a video
   // whose picture has stopped advancing.
   (() => {
-    const videos = Array.from(document.querySelectorAll('video[autoplay]'));
+    const videos = Array.from(document.querySelectorAll('video[data-autoplay]'));
     if (!videos.length) return;
+    let started = false;
     const last = new Map();
     const play = v => { v.muted = true; const p = v.play(); if (p && p.catch) p.catch(() => {}); };
     const reload = v => { const t = v.currentTime || 0; try { v.load(); } catch (e) {} v.addEventListener('loadeddata', () => { try { v.currentTime = t; } catch (e) {} play(v); }, { once: true }); play(v); };
     const resume = () => {
-      if (document.visibilityState === 'hidden') return;
+      if (!started || document.visibilityState === 'hidden') return;
       videos.forEach(v => { if (v.paused || v.ended || v.readyState < 2) play(v); });
     };
     // On every return to the page, wake every video wherever it is on the page:
     // play anything paused, then reload any whose clock hasn't moved.
     let lastReturn = 0;
     const returned = () => {
-      if (document.visibilityState === 'hidden') return;
+      if (!started || document.visibilityState === 'hidden') return;
       const now = Date.now(); if (now - lastReturn < 1500) return; lastReturn = now;
       // Press play on every video, on screen or not; a second later, reload only
       // those whose picture hasn't started moving (a reload throws away the buffer,
@@ -1811,7 +1812,7 @@ or book an initial session together.</p>
     videos.forEach(v => { v.addEventListener('stalled', () => { const t = v.currentTime; setTimeout(() => { if (!v.paused && Math.abs(v.currentTime - t) < 0.05) reload(v); }, 2500); }); v.addEventListener('error', () => setTimeout(() => reload(v), 1000)); });
     // Frozen-picture detector: playing but the clock isn't moving.
     function check() {
-      if (document.visibilityState === 'hidden') return;
+      if (!started || document.visibilityState === 'hidden') return;
       videos.forEach(v => {
         const r = v.getBoundingClientRect();
         const onScreen = r.bottom > 0 && r.top < innerHeight;
@@ -1823,7 +1824,16 @@ or book an initial session together.</p>
       });
     }
     setInterval(check, 2000);
-    resume();
+    // Don't compete with the hero: wait until the photo, fonts and text have
+    // finished loading, then fetch and start the videos (well before anyone
+    // scrolls down to them). A 6s backstop covers a slow load event.
+    const start = () => {
+      if (started) return; started = true;
+      videos.forEach(v => { v.preload = 'auto'; v.autoplay = true; play(v); });
+    };
+    if (document.readyState === 'complete') setTimeout(start, 150);
+    else window.addEventListener('load', () => setTimeout(start, 150), { once: true });
+    setTimeout(start, 6000);
   })();
 </script>
 <template id="__bundler_thumbnail">
